@@ -1,4 +1,4 @@
-__version__ = '1.2.3'
+__version__ = '1.2.4'
 
 import logging
 from logging.handlers import RotatingFileHandler
@@ -132,8 +132,8 @@ def main():
     mod_hash_list = []
     for mod in mod_dir_list:
         if mod.split('.')[-1] != 'jar':
-            logger.info(f'Skipping {mod}')
-            print(f'Skipping {mod}')
+            logger.info(f'Ignoring {mod}')
+            print(f'Ignoring {mod}')
             continue
         logger.debug(f'Getting {mod} hash')
         print(f'Checking {mod} for updates')
@@ -178,15 +178,22 @@ def main():
     logger.debug(f'Mods update info: {mods_update_info}')
 
     mods_updated_count = 0
+    no_new_version_count = 0
     for mod in mod_hash_list:
         logger.info(f'Checking {mods_fname_dict[mod]} ({mod}) for updates')
+        if mod not in mods_update_info[mods_loader_dict[mod]]:
+            logger.warning(f'Skipping {mods_fname_dict[mod]} ({mod}) does not have a version for {args.gameversion}')
+            print(f'[Warning] Skipping {mods_fname_dict[mod]} ({mod}) does not have a version for {args.gameversion}')
+            no_new_version_count += 1
+            continue
+
         mod_update_files = mods_update_info[mods_loader_dict[mod]][mod]['files']
         mod_dl_url = mod_update_files[0]['url']
         new_mod_filename = mod_update_files[0]['filename']
 
         if mod == mod_update_files[0]['hashes']['sha1']:
-            logger.info(f'Mod {mods_fname_dict[mod]} is already updated')
-            print(f'Mod {mods_fname_dict[mod]} is already updated')
+            logger.info(f'Skipping {mods_fname_dict[mod]} is already updated')
+            print(f'Skipping {mods_fname_dict[mod]} is already updated')
             continue
 
         logger.debug(f'Update link for {mods_fname_dict[mod]}: {mod_update_files[0]['url']}')
@@ -203,6 +210,8 @@ def main():
 
     logger.info(f'{mods_updated_count} mods updated successfully')
     print(f'{mods_updated_count} mods updated successfully')
+    logger.info(f'{no_new_version_count} mods have no version for {args.gameversion}')
+    print(f'{no_new_version_count} mods have no version for {args.gameversion}')
 
 
 if __name__ == '__main__':
