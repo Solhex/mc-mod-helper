@@ -1,4 +1,4 @@
-__version__ = '1.2.4'
+__version__ = '1.2.5'
 
 import logging
 from logging.handlers import RotatingFileHandler
@@ -9,9 +9,15 @@ from requests.exceptions import HTTPError
 import os
 from apis.modrinth_api import ModrinthApi
 
+# Set arguments:
+# gameversion
+# -p --path         - Add auto directory finding
+# -k --keep
+# -log --log-level
+# -V --version
 parser = argparse.ArgumentParser(
     prog='Minecraft Mod Updater',
-    description='Gets your minecraft mods and them updates')
+    description='Updates all minecraft mods in a given directory through modrinth')
 parser.add_argument(
     'gameversion', metavar='gameversion',
     action='store', type=str,
@@ -19,16 +25,16 @@ parser.add_argument(
 parser.add_argument(
     '-p', '--path',
     metavar='path', action='store',
-    type=str, help='path to the .minecraft path, '
+    type=str, help='Path to the .minecraft path, '
                    'if not used script will assume its in the .minecraft folder')
 parser.add_argument(
     '-k', '--keep',
-    action='store_true', help='keep outdated mods')
+    action='store_true', help='Keep outdated mods')
 parser.add_argument(
     '-log', '--log-level',
     action='store', default='INFO',
     type=str.lower, choices=['debug', 'info', 'warn', 'warning', 'error', 'critical'],
-    metavar='\b', help='set the log level of the program '
+    metavar='\b', help='Set the log level '
          '(debug, info, warn(ing), error, critical) (default: INFO)')
 parser.add_argument(
     '-V', '--version',
