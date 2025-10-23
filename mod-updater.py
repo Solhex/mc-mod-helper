@@ -1,4 +1,5 @@
 __version__ = '1.2.5'
+__author__ = 'Solhex'
 
 import logging
 from logging.handlers import RotatingFileHandler
@@ -41,6 +42,7 @@ parser.add_argument(
     action='version', version=__version__)
 args = parser.parse_args()
 
+# Used later to correlate the user input to
 log_levels = {
     'critical': logging.CRITICAL,
     'error': logging.ERROR,
@@ -105,10 +107,13 @@ def download_mod(
         print(f'[Critical] Unexpected error occurred: {err}')
 
 def main():
+    """Main function."""
     logger.info('Script started')
     print(f'Auto mod updater script started! Version {__version__}')
     logger.debug(f'Script args: {args}')
 
+    # Gets the path of the script to then sets the minecraft dir,
+    # if arg path was specified replace minecraft dir to user input
     script_dir = os.path.split(os.path.realpath(__file__))[0]
     minecraft_dir = os.path.abspath(os.path.join(script_dir, '..'))
     if args.path is not None:
@@ -118,22 +123,30 @@ def main():
     logger.debug(f'Current minecraft directory: {minecraft_dir}')
     logger.debug(f'Minecraft mod directory: {mod_dir}')
 
+    # Checks if it has been set to the minecraft folder,
+    # if not exit and no path input was given exit
     if minecraft_dir.split(os.sep)[-1] != '.minecraft' and args.path is None:
-        logger.critical('Either script folder must be in the .minecraft directory or -p must be set. '
-                        f'Was set to: {minecraft_dir}')
+        logger.critical('Either script folder must be in the .minecraft '
+                        f'directory or -p must be set. Was set to: {minecraft_dir}')
         print('[Error] Script folder must be in the .minecraft directory or -p must be set. '
               f'Was set to: {minecraft_dir}')
         exit()
+
+    # Checks if the mod folder exists, if not exit
     if not os.path.isdir(mod_dir):
         logger.critical('Mod folder not found')
         print('[Error] Mod folder does not exist.')
         exit()
 
+    # Initialises the modrinth api
     modrinth = ModrinthApi()
 
+    # Creates a list of all files/folders in the mod folder
     mod_dir_list = os.listdir(mod_dir)
     logger.debug(f'Mod dir set to: {mod_dir}')
 
+    # Checks if the file is a .jar file,
+    # if so get the sha1 hash of the file and add it to a dictionary
     mods_fname_dict = {}
     mod_hash_list = []
     for mod in mod_dir_list:
@@ -152,6 +165,7 @@ def main():
         print('No mods found!')
         exit()
 
+    #
     mods_info_dict = modrinth.get_multiple_mods_details(mod_hash_list)
     if 'error' in mods_info_dict.keys():
         print(f'[Error] {mods_info_dict['error']}\nNo updates can be performed quitting.')
@@ -179,7 +193,8 @@ def main():
             loader=loader)
         logger.debug(f'Bulk updated mods info for {loader}: {mods_update_info[loader]}')
         if 'error' in mods_info_dict.keys():
-            print(f'[Error] {mods_update_info[loader]}\nNo updates can be performed quitting.')
+            print(f'[Error] {mods_update_info[loader]}\n'
+                  'No updates can be performed quitting.')
             exit()
     logger.debug(f'Mods update info: {mods_update_info}')
 
