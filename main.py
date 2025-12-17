@@ -1,7 +1,8 @@
-__version__ = '1.2.5'
+__version__ = '1.3.0'
 
 import logging
-from logging.handlers import RotatingFileHandler
+from logging.config import dictConfig
+from datetime import datetime
 import hashlib
 import argparse
 import requests
@@ -31,40 +32,64 @@ parser.add_argument(
     '-k', '--keep',
     action='store_true', help='Keep outdated mods')
 parser.add_argument(
+    '-lp', '--log-dir',
+    type=str,
+    default='./log',
+    help='set the directory to store logs in (default: ./log)'
+)
+parser.add_argument(
     '-log', '--log-level',
     action='store', default='INFO',
-    type=str.lower, choices=['debug', 'info', 'warn', 'warning', 'error', 'critical'],
+    type=str.upper, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
     metavar='\b', help='Set the log level '
-         '(debug, info, warn(ing), error, critical) (default: INFO)')
+         '(DEBUG, INFO, WARNING, ERROR, CRITICAL) (default: INFO)')
 parser.add_argument(
     '-V', '--version',
     action='version', version=__version__)
 args = parser.parse_args()
 
-log_levels = {
-    'critical': logging.CRITICAL,
-    'error': logging.ERROR,
-    'warn': logging.WARNING,
-    'warning': logging.WARNING,
-    'info': logging.INFO,
-    'debug': logging.DEBUG
-}
+# Create log directory if non-existent
+if not os.path.exists(args.log_dir):
+    os.makedirs(args.log_dir)
+
+# Configures and structures the logger
+logging.config.dictConfig({
+    'version': 1,
+    'formatters': {
+        'brief': {
+            'format': '%(levelname)s: %(message)s',
+        },
+        'precise': {
+            'format': '[%(asctime)s]:%(levelname)s:%(module)s: %(message)s',
+            'datefmt': '%Y-%m-%d %H:%M:%S'
+        }
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'brief',
+            'stream': 'ext://sys.stdout'
+        },
+        'outputFile': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'formatter': 'precise',
+            'maxBytes': 4 * 1024 * 1000,
+            'backupCount': 10,
+            'filename': os.path.join(
+                args.log_dir,
+                f'{datetime.now().strftime("%Y-%m-%d")}-mc-mod-helper.log'
+            )
+        }
+    },
+    'loggers': {
+        '': {
+            'level': args.log_level,
+            'handlers': ['console', 'outputFile']
+        }
+    }
+})
 
 logger = logging.getLogger(__name__)
-logger.setLevel(log_levels[args.log_level])
-
-modrinth_api_logger = logging.getLogger('apis.modrinth_api')
-modrinth_api_logger.setLevel(log_levels[args.log_level])
-
-log_file = './logs/mod-updater.log'
-file_handler = RotatingFileHandler(
-    log_file, mode='a',
-    maxBytes=5*1024*1024, backupCount=2)
-formatter = logging.Formatter(
-    '[%(asctime)s]:[%(levelname)s]: %(message)s',
-    '%Y-%m-%d %H:%M:%S')
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
 
 def get_sha1(
         filepath,
