@@ -124,15 +124,12 @@ def download_mod(
         download_file(update_link, path=mod_dir)
     except HTTPError as err:
         logger.error(f'HTTP error occurred: {err}')
-        print(f'[Error] HTTP error occurred: {err}')
     except Exception as err:
         logger.critical(f'Unexpected error occurred: {err}')
-        print(f'[Critical] Unexpected error occurred: {err}')
 
 def main():
-    logger.info('Script started')
-    print(f'Auto mod updater script started! Version {__version__}')
     logger.debug(f'Script args: {args}')
+    logger.info(f'Auto mod updater script started! Version {__version__}')
 
     script_dir = os.path.split(os.path.realpath(__file__))[0]
     minecraft_dir = os.path.abspath(os.path.join(script_dir, '..'))
@@ -146,12 +143,9 @@ def main():
     if minecraft_dir.split(os.sep)[-1] != '.minecraft' and args.path is None:
         logger.critical('Either script folder must be in the .minecraft directory or -p must be set. '
                         f'Was set to: {minecraft_dir}')
-        print('[Error] Script folder must be in the .minecraft directory or -p must be set. '
-              f'Was set to: {minecraft_dir}')
         exit()
     if not os.path.isdir(mod_dir):
-        logger.critical('Mod folder not found')
-        print('[Error] Mod folder does not exist.')
+        logger.critical('Mod folder does not exist')
         exit()
 
     modrinth = ModrinthApi()
@@ -164,22 +158,19 @@ def main():
     for mod in mod_dir_list:
         if mod.split('.')[-1] != 'jar':
             logger.info(f'Ignoring {mod}')
-            print(f'Ignoring {mod}')
             continue
         logger.debug(f'Getting {mod} hash')
-        print(f'Checking {mod} for updates')
         mod_hash = get_sha1(os.path.join(mod_dir, mod))
         mods_fname_dict[mod_hash] = mod
         mod_hash_list.append(mod_hash)
 
     if not mod_hash_list:
         logger.warning('No mods found!')
-        print('No mods found!')
         exit()
 
     mods_info_dict = modrinth.get_multiple_mods_details(mod_hash_list)
     if 'error' in mods_info_dict.keys():
-        print(f'[Error] {mods_info_dict['error']}\nNo updates can be performed quitting.')
+        logger.critical(f'No updates can be performed quitting, error output:\n{mods_info_dict["error"]}')
         exit()
     logger.debug(f'Bulk mods info: {mods_info_dict}')
 
@@ -204,7 +195,7 @@ def main():
             loader=loader)
         logger.debug(f'Bulk updated mods info for {loader}: {mods_update_info[loader]}')
         if 'error' in mods_info_dict.keys():
-            print(f'[Error] {mods_update_info[loader]}\nNo updates can be performed quitting.')
+            logger.critical(f'No updates can be performed quitting, error output:\n{mods_info_dict[loader]}')
             exit()
     logger.debug(f'Mods update info: {mods_update_info}')
 
@@ -214,7 +205,6 @@ def main():
         logger.info(f'Checking {mods_fname_dict[mod]} ({mod}) for updates')
         if mod not in mods_update_info[mods_loader_dict[mod]]:
             logger.warning(f'Skipping {mods_fname_dict[mod]} ({mod}) does not have a version for {args.gameversion}')
-            print(f'[Warning] Skipping {mods_fname_dict[mod]} ({mod}) does not have a version for {args.gameversion}')
             no_new_version_count += 1
             continue
 
@@ -224,25 +214,21 @@ def main():
 
         if mod == mod_update_files[0]['hashes']['sha1']:
             logger.info(f'Skipping {mods_fname_dict[mod]} is already updated')
-            print(f'Skipping {mods_fname_dict[mod]} is already updated')
             continue
 
-        logger.debug(f'Update link for {mods_fname_dict[mod]}: {mod_update_files[0]['url']}')
-        print(f'Updating {mods_fname_dict[mod]} to {new_mod_filename}')
+        logger.debug(f'Update link for {mods_fname_dict[mod]}: {mod_update_files[0]["url"]}')
+        logger.info(f'Updating {mods_fname_dict[mod]} to {new_mod_filename}')
 
         download_mod(mod_dl_url, mod_dir)
 
         if not args.keep:
             os.remove(os.path.join(mod_dir, mods_fname_dict[mod]))
             logger.info(f'Deleted old mod file: {mods_fname_dict[mod]}')
-            print(f'Deleted old mod file: {mods_fname_dict[mod]}')
 
         mods_updated_count += 1
 
     logger.info(f'{mods_updated_count} mods updated successfully')
-    print(f'{mods_updated_count} mods updated successfully')
     logger.info(f'{no_new_version_count} mods have no version for {args.gameversion}')
-    print(f'{no_new_version_count} mods have no version for {args.gameversion}')
 
 
 if __name__ == '__main__':
