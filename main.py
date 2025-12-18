@@ -97,6 +97,7 @@ logging.config.dictConfig({
 
 logger = logging.getLogger(__name__)
 
+
 def get_sha1(
         filepath,
         buffer_size=65536) -> str:
@@ -122,16 +123,6 @@ def download_file(url, path='./') -> str:
                 f.write(chunk)
     return filename
 
-def download_mod(
-        update_link: str,
-        mod_dir='./mods') -> None:
-    """Downloads a mod"""
-    try:
-        download_file(update_link, path=mod_dir)
-    except HTTPError as err:
-        logger.error(f'HTTP error occurred: {err}')
-    except Exception as err:
-        logger.critical(f'Unexpected error occurred: {err}')
 
 def main():
     logger.debug(f'Script args: {args}')
@@ -168,7 +159,8 @@ def main():
 
     mods_info_dict = modrinth.get_multiple_mods_details(mod_hash_list)
     if 'error' in mods_info_dict.keys():
-        logger.critical(f'No updates can be performed quitting, error output:\n{mods_info_dict["error"]}')
+        logger.critical(f'No updates can be performed quitting, '
+                        f'error output:\n{mods_info_dict["error"]}')
         exit()
     logger.debug(f'Bulk mods info: {mods_info_dict}')
 
@@ -177,11 +169,7 @@ def main():
     mods_update_info = {}
     for mod in mods_info_dict:
         loader = mods_info_dict[mod]['loaders'][0]
-        if loader not in loader_mods_dict:
-            loader_mods_dict[loader] = [mod]
-            mods_update_info[loader] = {}
-        else:
-            loader_mods_dict[loader].append(mod)
+        loader_mods_dict.setdefault(loader, []).append(mod)
         mods_loader_dict[mod] = loader
     logger.debug(f'Loader mods dict: {loader_mods_dict}')
     logger.debug(f'Mods loader dict: {mods_loader_dict}')
@@ -193,14 +181,21 @@ def main():
             loader=loader)
         logger.debug(f'Bulk updated mods info for {loader}: {mods_update_info[loader]}')
         if 'error' in mods_info_dict.keys():
-            logger.critical(f'No updates can be performed quitting, error output:\n{mods_info_dict[loader]}')
+            logger.critical(f'No updates can be performed quitting, '
+                            f'error output:\n{mods_info_dict["error"]}')
             exit()
     logger.debug(f'Mods update info: {mods_update_info}')
 
     mods_updated_count = 0
     no_new_version_count = 0
     for mod in mod_hash_list:
-        logger.info(f'Checking {mods_fname_dict[mod]} ({mod}) for updates')
+        logger.info(f'Checking {mods_filename_dict[mod]} ({mod}) for updates')
+        if mod not in mods_loader_dict.keys():
+            logger.warning(f'Skipping {mods_filename_dict[mod]} ({mod}) '
+                           f'no results from apis')
+            no_new_version_count += 1
+            continue
+
         if mod not in mods_update_info[mods_loader_dict[mod]]:
             logger.warning(f'Skipping {mods_filename_dict[mod]} ({mod}) '
                            f'does not have a version for {args.gameversion}')
@@ -219,11 +214,16 @@ def main():
                      f'{mod_update_files[0]["url"]}')
         logger.info(f'Updating {mods_filename_dict[mod]} to {new_mod_filename}')
 
-        download_mod(mod_dl_url, mod_dir)
-
-        if not args.keep:
-            os.remove(os.path.join(mod_dir, mods_fname_dict[mod]))
-            logger.info(f'Deleted old mod file: {mods_fname_dict[mod]}')
+        try:
+            download_file(mod_dl_url, mod_dir)
+            if not args.keep:
+                os.remove(os.path.join(mod_dir, mods_filename_dict[mod]))
+                logger.info(f'Deleted old mod file: {mods_filename_dict[mod]}')
+        except HTTPError as err:
+            logger.error(f'HTTP error occurred: {err}')
+        except Exception as err:
+            logger.critical(f'Unexpected error occurred: {err}')
+            exit()
 
         mods_updated_count += 1
 
