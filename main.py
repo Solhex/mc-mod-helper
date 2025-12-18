@@ -12,6 +12,7 @@ from apis.modrinth_api import ModrinthApi
 
 # Set arguments:
 # gameversion
+# path
 # -p --path         - Add auto directory finding
 # -k --keep
 # --log-dir
@@ -27,10 +28,10 @@ parser.add_argument(
     type=str,
     help='Minecraft version to check updates for (e.g. 1.16.5 24w34a 1.21)')
 parser.add_argument(
-    '-p', '--path',
-    metavar='path', action='store',
-    type=str, help='Path to the .minecraft path, '
-                   'if not used script will assume its in the .minecraft folder')
+    'path',
+    action='store',
+    type=str,
+    help='Path to the .minecraft directory')
 parser.add_argument(
     '-k', '--keep',
     action='store_true',
@@ -136,19 +137,11 @@ def main():
     logger.debug(f'Script args: {args}')
     logger.info(f'Auto mod updater script started! Version {__version__}')
 
-    script_dir = os.path.split(os.path.realpath(__file__))[0]
-    minecraft_dir = os.path.abspath(os.path.join(script_dir, '..'))
-    if args.path is not None:
-        minecraft_dir = os.path.abspath(args.path)
+    minecraft_dir = os.path.abspath(args.path)
     mod_dir = os.path.join(minecraft_dir, 'mods')
-    logger.debug(f'Current script directory: {script_dir}')
     logger.debug(f'Current minecraft directory: {minecraft_dir}')
     logger.debug(f'Minecraft mod directory: {mod_dir}')
 
-    if minecraft_dir.split(os.sep)[-1] != '.minecraft' and args.path is None:
-        logger.critical('Either script folder must be in the .minecraft directory or -p must be set. '
-                        f'Was set to: {minecraft_dir}')
-        exit()
     if not os.path.isdir(mod_dir):
         logger.critical('Mod folder does not exist')
         exit()
