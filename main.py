@@ -12,36 +12,42 @@ from apis.modrinth_api import ModrinthApi
 
 # Set arguments:
 # gameversion
+# path
 # -p --path         - Add auto directory finding
 # -k --keep
-# -log --log-level
+# --log-dir
+# --log-level
 # -V --version
 parser = argparse.ArgumentParser(
     prog='Minecraft Mod Updater',
-    description='Updates all minecraft mods in a given directory through modrinth')
+    description='Updates all minecraft mods in '
+                'a given directory through modrinth')
 parser.add_argument(
-    'gameversion', metavar='gameversion',
-    action='store', type=str,
+    'gameversion',
+    action='store',
+    type=str,
     help='Minecraft version to check updates for (e.g. 1.16.5 24w34a 1.21)')
 parser.add_argument(
-    '-p', '--path',
-    metavar='path', action='store',
-    type=str, help='Path to the .minecraft path, '
-                   'if not used script will assume its in the .minecraft folder')
+    'path',
+    action='store',
+    type=str,
+    help='Path to the .minecraft directory')
 parser.add_argument(
     '-k', '--keep',
-    action='store_true', help='Keep outdated mods')
+    action='store_true',
+    help='Keep outdated mods')
 parser.add_argument(
-    '-lp', '--log-dir',
+    '--log-dir',
     type=str,
     default='./log',
-    help='set the directory to store logs in (default: ./log)'
-)
+    help='set the directory to store logs in (default: ./log)')
 parser.add_argument(
-    '-log', '--log-level',
-    action='store', default='INFO',
-    type=str.upper, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
-    metavar='\b', help='Set the log level '
+    '--log-level',
+    action='store',
+    type=str.upper,
+    default='INFO',
+    choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+    help='Set the log level '
          '(DEBUG, INFO, WARNING, ERROR, CRITICAL) (default: INFO)')
 parser.add_argument(
     '-V', '--version',
@@ -91,6 +97,7 @@ logging.config.dictConfig({
 
 logger = logging.getLogger(__name__)
 
+
 def get_sha1(
         filepath,
         buffer_size=65536) -> str:
@@ -116,52 +123,34 @@ def download_file(url, path='./') -> str:
                 f.write(chunk)
     return filename
 
-def download_mod(
-        update_link: str,
-        mod_dir='./mods') -> None:
-    """Downloads a mod"""
-    try:
-        download_file(update_link, path=mod_dir)
-    except HTTPError as err:
-        logger.error(f'HTTP error occurred: {err}')
-    except Exception as err:
-        logger.critical(f'Unexpected error occurred: {err}')
 
 def main():
     logger.debug(f'Script args: {args}')
     logger.info(f'Auto mod updater script started! Version {__version__}')
 
-    script_dir = os.path.split(os.path.realpath(__file__))[0]
-    minecraft_dir = os.path.abspath(os.path.join(script_dir, '..'))
-    if args.path is not None:
-        minecraft_dir = os.path.abspath(args.path)
+    minecraft_dir = os.path.abspath(args.path)
     mod_dir = os.path.join(minecraft_dir, 'mods')
-    logger.debug(f'Current script directory: {script_dir}')
     logger.debug(f'Current minecraft directory: {minecraft_dir}')
     logger.debug(f'Minecraft mod directory: {mod_dir}')
 
-    if minecraft_dir.split(os.sep)[-1] != '.minecraft' and args.path is None:
-        logger.critical('Either script folder must be in the .minecraft directory or -p must be set. '
-                        f'Was set to: {minecraft_dir}')
-        exit()
     if not os.path.isdir(mod_dir):
         logger.critical('Mod folder does not exist')
         exit()
 
     modrinth = ModrinthApi()
 
-    mod_dir_list = os.listdir(mod_dir)
+    mod_dir_item_list = os.listdir(mod_dir)
     logger.debug(f'Mod dir set to: {mod_dir}')
 
-    mods_fname_dict = {}
+    mods_filename_dict = {}
     mod_hash_list = []
-    for mod in mod_dir_list:
-        if mod.split('.')[-1] != 'jar':
-            logger.info(f'Ignoring {mod}')
+    for item in mod_dir_item_list:
+        if item.split('.')[-1] != 'jar':
+            logger.info(f'Ignoring {item}')
             continue
-        logger.debug(f'Getting {mod} hash')
-        mod_hash = get_sha1(os.path.join(mod_dir, mod))
-        mods_fname_dict[mod_hash] = mod
+        logger.debug(f'Getting {item} hash')
+        mod_hash = get_sha1(os.path.join(mod_dir, item))
+        mods_filename_dict[mod_hash] = item
         mod_hash_list.append(mod_hash)
 
     if not mod_hash_list:
@@ -170,7 +159,8 @@ def main():
 
     mods_info_dict = modrinth.get_multiple_mods_details(mod_hash_list)
     if 'error' in mods_info_dict.keys():
-        logger.critical(f'No updates can be performed quitting, error output:\n{mods_info_dict["error"]}')
+        logger.critical(f'No updates can be performed quitting, '
+                        f'error output:\n{mods_info_dict["error"]}')
         exit()
     logger.debug(f'Bulk mods info: {mods_info_dict}')
 
@@ -179,11 +169,7 @@ def main():
     mods_update_info = {}
     for mod in mods_info_dict:
         loader = mods_info_dict[mod]['loaders'][0]
-        if loader not in loader_mods_dict:
-            loader_mods_dict[loader] = [mod]
-            mods_update_info[loader] = {}
-        else:
-            loader_mods_dict[loader].append(mod)
+        loader_mods_dict.setdefault(loader, []).append(mod)
         mods_loader_dict[mod] = loader
     logger.debug(f'Loader mods dict: {loader_mods_dict}')
     logger.debug(f'Mods loader dict: {mods_loader_dict}')
@@ -195,16 +181,24 @@ def main():
             loader=loader)
         logger.debug(f'Bulk updated mods info for {loader}: {mods_update_info[loader]}')
         if 'error' in mods_info_dict.keys():
-            logger.critical(f'No updates can be performed quitting, error output:\n{mods_info_dict[loader]}')
+            logger.critical(f'No updates can be performed quitting, '
+                            f'error output:\n{mods_info_dict["error"]}')
             exit()
     logger.debug(f'Mods update info: {mods_update_info}')
 
     mods_updated_count = 0
     no_new_version_count = 0
     for mod in mod_hash_list:
-        logger.info(f'Checking {mods_fname_dict[mod]} ({mod}) for updates')
+        logger.info(f'Checking {mods_filename_dict[mod]} ({mod}) for updates')
+        if mod not in mods_loader_dict.keys():
+            logger.warning(f'Skipping {mods_filename_dict[mod]} ({mod}) '
+                           f'no results from apis')
+            no_new_version_count += 1
+            continue
+
         if mod not in mods_update_info[mods_loader_dict[mod]]:
-            logger.warning(f'Skipping {mods_fname_dict[mod]} ({mod}) does not have a version for {args.gameversion}')
+            logger.warning(f'Skipping {mods_filename_dict[mod]} ({mod}) '
+                           f'does not have a version for {args.gameversion}')
             no_new_version_count += 1
             continue
 
@@ -213,17 +207,23 @@ def main():
         new_mod_filename = mod_update_files[0]['filename']
 
         if mod == mod_update_files[0]['hashes']['sha1']:
-            logger.info(f'Skipping {mods_fname_dict[mod]} is already updated')
+            logger.info(f'Skipping {mods_filename_dict[mod]} is already updated')
             continue
 
-        logger.debug(f'Update link for {mods_fname_dict[mod]}: {mod_update_files[0]["url"]}')
-        logger.info(f'Updating {mods_fname_dict[mod]} to {new_mod_filename}')
+        logger.debug(f'Update link for {mods_filename_dict[mod]}: '
+                     f'{mod_update_files[0]["url"]}')
+        logger.info(f'Updating {mods_filename_dict[mod]} to {new_mod_filename}')
 
-        download_mod(mod_dl_url, mod_dir)
-
-        if not args.keep:
-            os.remove(os.path.join(mod_dir, mods_fname_dict[mod]))
-            logger.info(f'Deleted old mod file: {mods_fname_dict[mod]}')
+        try:
+            download_file(mod_dl_url, mod_dir)
+            if not args.keep:
+                os.remove(os.path.join(mod_dir, mods_filename_dict[mod]))
+                logger.info(f'Deleted old mod file: {mods_filename_dict[mod]}')
+        except HTTPError as err:
+            logger.error(f'HTTP error occurred: {err}')
+        except Exception as err:
+            logger.critical(f'Unexpected error occurred: {err}')
+            exit()
 
         mods_updated_count += 1
 
