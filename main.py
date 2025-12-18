@@ -148,18 +148,18 @@ def main():
 
     modrinth = ModrinthApi()
 
-    mod_dir_list = os.listdir(mod_dir)
+    mod_dir_item_list = os.listdir(mod_dir)
     logger.debug(f'Mod dir set to: {mod_dir}')
 
-    mods_fname_dict = {}
+    mods_filename_dict = {}
     mod_hash_list = []
-    for mod in mod_dir_list:
-        if mod.split('.')[-1] != 'jar':
-            logger.info(f'Ignoring {mod}')
+    for item in mod_dir_item_list:
+        if item.split('.')[-1] != 'jar':
+            logger.info(f'Ignoring {item}')
             continue
-        logger.debug(f'Getting {mod} hash')
-        mod_hash = get_sha1(os.path.join(mod_dir, mod))
-        mods_fname_dict[mod_hash] = mod
+        logger.debug(f'Getting {item} hash')
+        mod_hash = get_sha1(os.path.join(mod_dir, item))
+        mods_filename_dict[mod_hash] = item
         mod_hash_list.append(mod_hash)
 
     if not mod_hash_list:
@@ -202,7 +202,8 @@ def main():
     for mod in mod_hash_list:
         logger.info(f'Checking {mods_fname_dict[mod]} ({mod}) for updates')
         if mod not in mods_update_info[mods_loader_dict[mod]]:
-            logger.warning(f'Skipping {mods_fname_dict[mod]} ({mod}) does not have a version for {args.gameversion}')
+            logger.warning(f'Skipping {mods_filename_dict[mod]} ({mod}) '
+                           f'does not have a version for {args.gameversion}')
             no_new_version_count += 1
             continue
 
@@ -211,11 +212,12 @@ def main():
         new_mod_filename = mod_update_files[0]['filename']
 
         if mod == mod_update_files[0]['hashes']['sha1']:
-            logger.info(f'Skipping {mods_fname_dict[mod]} is already updated')
+            logger.info(f'Skipping {mods_filename_dict[mod]} is already updated')
             continue
 
-        logger.debug(f'Update link for {mods_fname_dict[mod]}: {mod_update_files[0]["url"]}')
-        logger.info(f'Updating {mods_fname_dict[mod]} to {new_mod_filename}')
+        logger.debug(f'Update link for {mods_filename_dict[mod]}: '
+                     f'{mod_update_files[0]["url"]}')
+        logger.info(f'Updating {mods_filename_dict[mod]} to {new_mod_filename}')
 
         download_mod(mod_dl_url, mod_dir)
 
