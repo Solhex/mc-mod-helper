@@ -14,14 +14,17 @@ from apis.modrinth_api import ModrinthApi
 # gameversion
 # -p --path         - Add auto directory finding
 # -k --keep
-# -log --log-level
+# --log-dir
+# --log-level
 # -V --version
 parser = argparse.ArgumentParser(
     prog='Minecraft Mod Updater',
-    description='Updates all minecraft mods in a given directory through modrinth')
+    description='Updates all minecraft mods in '
+                'a given directory through modrinth')
 parser.add_argument(
-    'gameversion', metavar='gameversion',
-    action='store', type=str,
+    'gameversion',
+    action='store',
+    type=str,
     help='Minecraft version to check updates for (e.g. 1.16.5 24w34a 1.21)')
 parser.add_argument(
     '-p', '--path',
@@ -30,18 +33,20 @@ parser.add_argument(
                    'if not used script will assume its in the .minecraft folder')
 parser.add_argument(
     '-k', '--keep',
-    action='store_true', help='Keep outdated mods')
+    action='store_true',
+    help='Keep outdated mods')
 parser.add_argument(
-    '-lp', '--log-dir',
+    '--log-dir',
     type=str,
     default='./log',
-    help='set the directory to store logs in (default: ./log)'
-)
+    help='set the directory to store logs in (default: ./log)')
 parser.add_argument(
-    '-log', '--log-level',
-    action='store', default='INFO',
-    type=str.upper, choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
-    metavar='\b', help='Set the log level '
+    '--log-level',
+    action='store',
+    type=str.upper,
+    default='INFO',
+    choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+    help='Set the log level '
          '(DEBUG, INFO, WARNING, ERROR, CRITICAL) (default: INFO)')
 parser.add_argument(
     '-V', '--version',
