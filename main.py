@@ -1,4 +1,4 @@
-__version__ = '1.3.1'
+__version__ = '1.3.2'
 
 import logging
 from logging.config import dictConfig
@@ -10,14 +10,9 @@ from requests.exceptions import HTTPError
 import os
 from apis.modrinth_api import ModrinthApi
 
-# Set arguments:
-# gameversion
-# path
-# -p --path         - Add auto directory finding
-# -k --keep
-# --log-dir
-# --log-level
-# -V --version
+# Program setup:
+# - Accept the Minecraft version and .minecraft path as required arguments.
+# - Optional flags control whether old mods are kept and where logs go.
 parser = argparse.ArgumentParser(
     prog='Minecraft Mod Updater',
     description='Updates all minecraft mods in '
@@ -54,11 +49,13 @@ parser.add_argument(
     action='version', version=__version__)
 args = parser.parse_args()
 
-# Create log directory if non-existent
+# Make sure the log directory exists before configuring file logging.
 if not os.path.exists(args.log_dir):
     os.makedirs(args.log_dir)
 
-# Configures and structures the logger
+# Configure logging:
+# - console output is short and readable
+# - file output is more detailed and rotated to avoid huge log files
 logging.config.dictConfig({
     'version': 1,
     'formatters': {
@@ -101,7 +98,7 @@ logger = logging.getLogger(__name__)
 def get_sha1(
         filepath,
         buffer_size=65536) -> str:
-    """Gets the sha1 hash of a file."""
+    """Return the SHA-1 hash for a file."""
     sha1 = hashlib.sha1()
     with open(filepath, 'rb') as f:
         while True:
@@ -112,8 +109,9 @@ def get_sha1(
     logger.debug(f'Gotten sha1 hash: {sha1.hexdigest()} from {filepath}')
     return sha1.hexdigest()
 
+
 def download_file(url, path='./') -> str:
-    """Downloads a file from a URL."""
+    """Download a file from a URL into the target directory."""
     filename = url.split('/')[-1]
     logger.info(f'Downloading {filename}')
     with requests.get(url, stream=True) as r:
@@ -125,26 +123,33 @@ def download_file(url, path='./') -> str:
 
 
 def main():
+    # Log startup info and show the parsed command-line arguments.
     logger.debug(f'Script args: {args}')
     logger.info(f'Auto mod updater script started! Version {__version__}')
 
+    # Resolve the Minecraft directory and the mods folder inside it.
     minecraft_dir = os.path.abspath(args.path)
     mod_dir = os.path.join(minecraft_dir, 'mods')
     logger.debug(f'Current minecraft directory: {minecraft_dir}')
     logger.debug(f'Minecraft mod directory: {mod_dir}')
 
+    # Stop early if the mods directory doesn't exist.
     if not os.path.isdir(mod_dir):
         logger.critical('Mod folder does not exist')
         exit()
 
+    # Create the API wrapper used for Modrinth lookups.
     modrinth = ModrinthApi()
 
+    # Read all files in the mods folder.
     mod_dir_item_list = os.listdir(mod_dir)
     logger.debug(f'Mod dir set to: {mod_dir}')
 
+    # Track each mod by its SHA-1 so we can match it against Modrinth data.
     mods_filename_dict = {}
     mod_hash_list = []
     for item in mod_dir_item_list:
+        # Only jar files are treated as mods.
         if item.split('.')[-1] != 'jar':
             logger.info(f'Ignoring {item}')
             continue
@@ -153,10 +158,12 @@ def main():
         mods_filename_dict[mod_hash] = item
         mod_hash_list.append(mod_hash)
 
+    # If there are no mods, there is nothing to update.
     if not mod_hash_list:
         logger.warning('No mods found!')
         exit()
 
+    # Ask Modrinth which mods match the local hashes.
     mods_info_dict = modrinth.get_multiple_mods_details(mod_hash_list)
     if 'error' in mods_info_dict.keys():
         logger.critical(f'No updates can be performed quitting, '
@@ -164,6 +171,7 @@ def main():
         exit()
     logger.debug(f'Bulk mods info: {mods_info_dict}')
 
+    # Group mods by loader because update queries are loader-specific.
     loader_mods_dict = {}
     mods_loader_dict = {}
     mods_update_info = {}
@@ -174,6 +182,7 @@ def main():
     logger.debug(f'Loader mods dict: {loader_mods_dict}')
     logger.debug(f'Mods loader dict: {mods_loader_dict}')
 
+    # Fetch update info for each loader group.
     for loader in loader_mods_dict:
         mods_update_info[loader] = modrinth.get_multiple_mods_update_info(
             loader_mods_dict[loader],
@@ -186,16 +195,20 @@ def main():
             exit()
     logger.debug(f'Mods update info: {mods_update_info}')
 
+    # Count update results for the final summary.
     mods_updated_count = 0
     no_new_version_count = 0
     for mod in mod_hash_list:
         logger.info(f'Checking {mods_filename_dict[mod]} ({mod}) for updates')
+
+        # If the API did not return info for this hash, skip it.
         if mod not in mods_loader_dict.keys():
             logger.warning(f'Skipping {mods_filename_dict[mod]} ({mod}) '
                            f'no results from apis')
             no_new_version_count += 1
             continue
 
+        # If this mod has no compatible version for the requested game version, skip it.
         if mod not in mods_update_info[mods_loader_dict[mod]]:
             logger.warning(f'Skipping {mods_filename_dict[mod]} ({mod}) '
                            f'does not have a version for {args.gameversion}')
@@ -206,6 +219,7 @@ def main():
         mod_dl_url = mod_update_files[0]['url']
         new_mod_filename = mod_update_files[0]['filename']
 
+        # If the SHA-1 already matches, the mod is already up to date.
         if mod == mod_update_files[0]['hashes']['sha1']:
             logger.info(f'Skipping {mods_filename_dict[mod]} is already updated')
             continue
@@ -215,7 +229,10 @@ def main():
         logger.info(f'Updating {mods_filename_dict[mod]} to {new_mod_filename}')
 
         try:
+            # Download the updated mod file.
             download_file(mod_dl_url, mod_dir)
+
+            # Optionally, delete the old file after the new one is downloaded.
             if not args.keep:
                 os.remove(os.path.join(mod_dir, mods_filename_dict[mod]))
                 logger.info(f'Deleted old mod file: {mods_filename_dict[mod]}')
@@ -227,6 +244,7 @@ def main():
 
         mods_updated_count += 1
 
+    # Final summary so the user knows what happened.
     logger.info(f'{mods_updated_count} mods updated successfully')
     logger.info(f'{no_new_version_count} mods have no version for {args.gameversion}')
 
