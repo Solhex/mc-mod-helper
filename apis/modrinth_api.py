@@ -115,6 +115,7 @@ class ModrinthApi:
             'loaders': [loader],
             'game_versions': [game_version]
         }
+
         return self._make_post_request(
             f'{self.api_url}/version_files/update',
             body)
