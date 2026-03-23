@@ -1,22 +1,11 @@
+__version__ = '1.0.1'
+
 import logging
-from logging.handlers import RotatingFileHandler
 import requests
 from requests.exceptions import HTTPError, ConnectionError, Timeout
-from . import MODRINTH_API_URL, HEADERS, DEFAULT_LOG_MODE
+from . import MODRINTH_API_URL, HEADERS
 
-logger = logging.getLogger(__name__)
-logger.setLevel(DEFAULT_LOG_MODE)
-logger.propagate = False
-
-log_file = './logs/modrinth_api.log'
-file_handler = RotatingFileHandler(
-    log_file, mode='a',
-    maxBytes=5*1024*1024, backupCount=2)
-formatter = logging.Formatter(
-    '[%(asctime)s]:[%(levelname)s]: %(message)s',
-    '%Y-%m-%d %H:%M:%S')
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
+logger = logging.getLogger('root')
 
 class RequestFailedError(Exception):
     pass
