@@ -5,7 +5,7 @@ A script that automatically updates Minecraft mods by checking for newer version
 on Modrinth and downloading them. Supports different game versions and mod loaders.
 """
 
-__version__ = '1.3.2'
+__version__ = '1.3.3'
 
 import logging
 from logging.config import dictConfig
