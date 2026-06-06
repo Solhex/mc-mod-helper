@@ -1,4 +1,11 @@
-__version__ = '1.3.2'
+"""
+Minecraft Mod Updater
+
+A script that automatically updates Minecraft mods by checking for newer versions
+on Modrinth and downloading them. Supports different game versions and mod loaders.
+"""
+
+__version__ = '1.3.3'
 
 import logging
 from logging.config import dictConfig
@@ -17,25 +24,30 @@ parser = argparse.ArgumentParser(
     prog='Minecraft Mod Updater',
     description='Updates all minecraft mods in '
                 'a given directory through modrinth')
+# Required: Minecraft game version (e.g., 1.21, 1.20.1, 24w34a)
 parser.add_argument(
     'gameversion',
     action='store',
     type=str,
     help='Minecraft version to check updates for (e.g. 1.16.5 24w34a 1.21)')
+# Required: Path to the .minecraft directory containing the mods folder
 parser.add_argument(
     'path',
     action='store',
     type=str,
     help='Path to the .minecraft directory')
+# Optional: Keep old mod files after updating instead of deleting them
 parser.add_argument(
     '-k', '--keep',
     action='store_true',
     help='Keep outdated mods')
+# Optional: Customize where log files are stored
 parser.add_argument(
     '--log-dir',
     type=str,
     default='./log',
     help='set the directory to store logs in (default: ./log)')
+# Optional: Set logging verbosity level
 parser.add_argument(
     '--log-level',
     action='store',
@@ -44,12 +56,14 @@ parser.add_argument(
     choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
     help='Set the log level '
          '(DEBUG, INFO, WARNING, ERROR, CRITICAL) (default: INFO)')
+# Display script version
 parser.add_argument(
     '-V', '--version',
     action='version', version=__version__)
 args = parser.parse_args()
 
 # Make sure the log directory exists before configuring file logging.
+# Create the directory and any necessary parent directories if they don't exist.
 if not os.path.exists(args.log_dir):
     os.makedirs(args.log_dir)
 
@@ -59,24 +73,28 @@ if not os.path.exists(args.log_dir):
 logging.config.dictConfig({
     'version': 1,
     'formatters': {
+        # Brief formatter for console: just level and message
         'brief': {
             'format': '%(levelname)s: %(message)s',
         },
+        # Precise formatter for file: timestamp, level, module, and message
         'precise': {
             'format': '[%(asctime)s]:%(levelname)s:%(module)s: %(message)s',
             'datefmt': '%Y-%m-%d %H:%M:%S'
         }
     },
     'handlers': {
+        # Console handler: outputs to stdout with brief format
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'brief',
             'stream': 'ext://sys.stdout'
         },
+        # File handler: rotating log files (4MB max, keep 10 backups)
         'outputFile': {
             'class': 'logging.handlers.RotatingFileHandler',
             'formatter': 'precise',
-            'maxBytes': 4 * 1024 * 1000,
+            'maxBytes': 4 * 1024 * 1000,  # 4MB
             'backupCount': 10,
             'filename': os.path.join(
                 args.log_dir,
@@ -85,6 +103,7 @@ logging.config.dictConfig({
         }
     },
     'loggers': {
+        # Root logger configuration: applies to all loggers
         '': {
             'level': args.log_level,
             'handlers': ['console', 'outputFile']
@@ -98,7 +117,17 @@ logger = logging.getLogger(__name__)
 def get_sha1(
         filepath,
         buffer_size=65536) -> str:
-    """Return the SHA-1 hash for a file."""
+    """Return the SHA-1 hash for a file.
+
+    Reads the file in chunks to avoid loading large files entirely into memory.
+
+    :param filepath: Path to the file to hash
+    :type filepath: str
+    :param buffer_size: Size of chunks to read (default: 64KB)
+    :type buffer_size: int
+    :return: SHA-1 hash as hexadecimal string
+    :rtype: str
+    """
     sha1 = hashlib.sha1()
     with open(filepath, 'rb') as f:
         while True:
@@ -111,7 +140,15 @@ def get_sha1(
 
 
 def download_file(url, path='./') -> str:
-    """Download a file from a URL into the target directory."""
+    """Downloads the file in chunks to handle large files efficiently.
+
+    :param url: URL of the file to download
+    :type url: str
+    :param path: Directory path where the file will be saved (default: current directory)
+    :type path: str
+    :return: Name of the downloaded file
+    :rtype: str
+    """
     filename = url.split('/')[-1]
     logger.info(f'Downloading {filename}')
     with requests.get(url, stream=True) as r:
@@ -123,6 +160,7 @@ def download_file(url, path='./') -> str:
 
 
 def main():
+    """Main function that orchestrates the mod update process."""
     # Log startup info and show the parsed command-line arguments.
     logger.debug(f'Script args: {args}')
     logger.info(f'Auto mod updater script started! Version {__version__}')
@@ -154,6 +192,7 @@ def main():
             logger.info(f'Ignoring {item}')
             continue
         logger.debug(f'Getting {item} hash')
+        # Calculate SHA-1 hash to identify the mod version
         mod_hash = get_sha1(os.path.join(mod_dir, item))
         mods_filename_dict[mod_hash] = item
         mod_hash_list.append(mod_hash)
@@ -164,6 +203,7 @@ def main():
         exit()
 
     # Ask Modrinth which mods match the local hashes.
+    # This retrieves metadata for all installed mods in a single API call
     mods_info_dict = modrinth.get_multiple_mods_details(mod_hash_list)
     if 'error' in mods_info_dict.keys():
         logger.critical(f'No updates can be performed quitting, '
@@ -183,6 +223,7 @@ def main():
     logger.debug(f'Mods loader dict: {mods_loader_dict}')
 
     # Fetch update info for each loader group.
+    # Query Modrinth for the latest compatible version of each mod
     for loader in loader_mods_dict:
         mods_update_info[loader] = modrinth.get_multiple_mods_update_info(
             loader_mods_dict[loader],
@@ -195,7 +236,6 @@ def main():
             exit()
     logger.debug(f'Mods update info: {mods_update_info}')
 
-    # Count update results for the final summary.
     mods_updated_count = 0
     no_new_version_count = 0
     for mod in mod_hash_list:
@@ -215,6 +255,7 @@ def main():
             no_new_version_count += 1
             continue
 
+        # Extract download information from the update data
         mod_update_files = mods_update_info[mods_loader_dict[mod]][mod]['files']
         mod_dl_url = mod_update_files[0]['url']
         new_mod_filename = mod_update_files[0]['filename']
@@ -233,6 +274,7 @@ def main():
             download_file(mod_dl_url, mod_dir)
 
             # Optionally, delete the old file after the new one is downloaded.
+            # Controlled by the --keep flag
             if not args.keep:
                 os.remove(os.path.join(mod_dir, mods_filename_dict[mod]))
                 logger.info(f'Deleted old mod file: {mods_filename_dict[mod]}')

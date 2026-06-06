@@ -20,7 +20,7 @@ class ModrinthApi:
     :param api_headers: Headers to send with the Request,
         defaults to HEADERS
     :type api_headers: dict, optional
-    :param hash_type: Hash type to be used,
+    :param default_hash_type: Hash type to be used,
         defaults to 'sha1'
     :type hash_type: str, optional
     """
