@@ -15,7 +15,7 @@ import argparse
 import requests
 from requests.exceptions import HTTPError
 import os
-from apis.modrinth_api import ModrinthApi
+from apis.modrinth_api import ModrinthAPI
 
 # Program setup:
 # - Accept the Minecraft version and .minecraft path as required arguments.
@@ -177,7 +177,7 @@ def main():
         exit()
 
     # Create the API wrapper used for Modrinth lookups.
-    modrinth = ModrinthApi()
+    modrinth = ModrinthAPI()
 
     # Read all files in the mods folder.
     mod_dir_item_list = os.listdir(mod_dir)
