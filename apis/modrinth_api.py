@@ -1,7 +1,7 @@
-__version__ = '1.1.1'
+__version__ = '1.1.2'
 
 import logging
-from . import BaseModApiClient
+from .base import BaseModApiClient
 
 logger = logging.getLogger('root')
 
