@@ -1,4 +1,4 @@
-__version__ = '1.1.2'
+__version__ = '1.1.3'
 
 import logging
 from .base import BaseModApiClient
@@ -35,7 +35,7 @@ class ModrinthAPI(BaseModApiClient):
         self.hash_type = hash_type
         logger.debug(f'Modrinth Default Hash Type: {self.hash_type}')
 
-    def get_multiple_mods_details(
+    def get_mods_by_hash(
             self,
             mod_hash_list: list) -> dict:
         """Returns a dictionary of each mod in mod_hash_list.
@@ -46,7 +46,7 @@ class ModrinthAPI(BaseModApiClient):
             may return empty dictionary if an error occurs
         :rtype: dict
         """
-        logger.info(f'Starting get_multiple_mods_details')
+        logger.info(f'Starting get_mods_by_hash')
         body = {
             'hashes': mod_hash_list,
             'algorithm': self.hash_type
@@ -56,7 +56,7 @@ class ModrinthAPI(BaseModApiClient):
             'version_files',
             body)
 
-    def get_multiple_mods_update_info(
+    def get_mod_updates_by_hash(
             self,
             mod_hash_list: list,
             game_version: str,
@@ -75,7 +75,7 @@ class ModrinthAPI(BaseModApiClient):
             may return empty dictionary if an error occurs
         :rtype: dict
         """
-        logger.info(f'Starting get_multiple_mods_update_info')
+        logger.info(f'Starting get_mod_updates_by_hash')
         body = {
             'hashes': mod_hash_list,
             'algorithm': self.hash_type,

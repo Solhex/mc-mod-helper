@@ -5,7 +5,7 @@ A script that automatically updates Minecraft mods by checking for newer version
 on Modrinth and downloading them. Supports different game versions and mod loaders.
 """
 
-__version__ = '1.3.3'
+__version__ = '1.3.4'
 
 import logging
 from logging.config import dictConfig
@@ -204,7 +204,7 @@ def main():
 
     # Ask Modrinth which mods match the local hashes.
     # This retrieves metadata for all installed mods in a single API call
-    mods_info_dict = modrinth.get_multiple_mods_details(mod_hash_list)
+    mods_info_dict = modrinth.get_mods_by_hash(mod_hash_list)
     if 'error' in mods_info_dict.keys():
         logger.critical(f'No updates can be performed quitting, '
                         f'error output:\n{mods_info_dict["error"]}')
@@ -225,7 +225,7 @@ def main():
     # Fetch update info for each loader group.
     # Query Modrinth for the latest compatible version of each mod
     for loader in loader_mods_dict:
-        mods_update_info[loader] = modrinth.get_multiple_mods_update_info(
+        mods_update_info[loader] = modrinth.get_mod_updates_by_hash(
             loader_mods_dict[loader],
             game_version=args.gameversion,
             loader=loader)
