@@ -9,6 +9,8 @@ from . import HEADERS
 
 logger = logging.getLogger('root')
 
+DEFAULT_TIMEOUT = 15
+
 
 class BaseModApiClient(ABC):
     """Base client for making requests to a mod-hosting API.
@@ -46,6 +48,7 @@ class BaseModApiClient(ABC):
 
         self.base_url = base_url if base_url[-1] == '/' else base_url + '/'
         self.headers = headers if headers is not None else HEADERS
+        self._session = requests.Session()
 
     def _make_post_request(
             self,
@@ -70,8 +73,9 @@ class BaseModApiClient(ABC):
 
         if method[0] == '/':
             method = method[1:]
+        kwargs.setdefault('timeout', DEFAULT_TIMEOUT)
         try:
-            response = requests.post(
+            response = self._session.post(
                 '/'.join((self.base_url, method)),
                 json=body,
                 headers=self.headers,
