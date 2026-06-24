@@ -163,3 +163,4 @@ cython_debug/
 !/mods/
 !/mods/old_mods/
 !/test.py
+/mods/old_mods/

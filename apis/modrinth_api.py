@@ -1,74 +1,41 @@
-__version__ = '1.0.1'
+__version__ = '1.1.3'
 
 import logging
-import requests
-from requests.exceptions import HTTPError, ConnectionError, Timeout
-from . import MODRINTH_API_URL, HEADERS
+from .base import BaseModApiClient
 
 logger = logging.getLogger('root')
 
-class RequestFailedError(Exception):
-    pass
+MODRINTH_API_URL = 'https://api.modrinth.com/v2'
+logger.debug(f'Modrinth API URL: {MODRINTH_API_URL}')
 
-class ModrinthApi:
-    """This class is for getting mod information using the modrinth
-    API.
-
-    :param mod_api_url: URL of the Modrinth api,
-        default value in __init__, defaults to MODRINTH_API_URL
-    :type mod_api_url: str, optional
-    :param api_headers: Headers to send with the Request,
-        defaults to HEADERS
-    :type api_headers: dict, optional
-    :param default_hash_type: Hash type to be used,
-        defaults to 'sha1'
-    :type hash_type: str, optional
-    """
+class ModrinthAPI(BaseModApiClient):
+    """Client for retrieving mod information from the Modrinth API."""
 
     def __init__(
             self,
-            mod_api_url=MODRINTH_API_URL,
-            api_headers=HEADERS,
-            default_hash_type='sha1'):
-        """Constructor method"""
-        logger.info('Starting ModrinthApi')
-        self.api_url = mod_api_url
-        self.headers = api_headers
-        self.hash_type = default_hash_type
-        logger.info(f'Modrinth API URL: {self.api_url}')
+            base_url: str = MODRINTH_API_URL,
+            headers: dict | None = None,
+            hash_type: str = 'sha1'):
+        """Initialize the Modrinth API client
 
-    def _make_post_request(
-            self,
-            request_url: str,
-            request_body: dict) -> dict:
-        try:
-            response = requests.post(
-                request_url,
-                json=request_body,
-                headers=self.headers)
-            response.raise_for_status()
-        except HTTPError as err:
-            logger.error(f'HTTP error occurred: {err}')
-            return {'error': f'HTTP error occurred: {err}'}
-        except ConnectionError as err:
-            logger.error(f'Connection error occurred: {err}')
-            return {'error': 'Connection error occurred'}
-        except Timeout as err:
-            logger.error(f'Timeout error occurred: {err}')
-            return {'error': 'Timeout error occurred'}
-        except requests.RequestException as err:
-            logger.error(f'Request exception occurred: {err}')
-            return {'error': 'Failed to retrieve data. See log for more details.'}
+        If no base URL is provided, the modrinth API v2 URL is used.
+        If no headers are provided, the default project headers are used.
 
-        logger.info(f'Request: {response.request.method} {response.request.url} - '
-                     f'Status: {response.status_code}')
-        logger.debug(f'Request headers: {response.request.headers}')
-        logger.debug(f'Request body: {response.request.body}')
-        logger.debug(f'Request content: {response.text}')
+        :param base_url: Optional alternative URL of the Modrinth API.
+        :type base_url: str
+        :param headers: Optional request headers.
+        :type headers: dict | None
+        :param hash_type: Hash type used for mod identification, defaults to 'sha1'.
+        :type hash_type: str
+        """
 
-        return response.json()
+        super().__init__(base_url, headers)
+        logger.info('Starting ModrinthAPI')
+        logger.info(f'Modrinth API URL: {self.base_url}')
+        self.hash_type = hash_type
+        logger.debug(f'Modrinth Default Hash Type: {self.hash_type}')
 
-    def get_multiple_mods_details(
+    def get_mods_by_hash(
             self,
             mod_hash_list: list) -> dict:
         """Returns a dictionary of each mod in mod_hash_list.
@@ -79,17 +46,17 @@ class ModrinthApi:
             may return empty dictionary if an error occurs
         :rtype: dict
         """
-        logger.info(f'Starting get_multiple_mods_details')
+        logger.info(f'Starting get_mods_by_hash')
         body = {
             'hashes': mod_hash_list,
             'algorithm': self.hash_type
         }
 
         return self._make_post_request(
-            f'{self.api_url}/version_files',
+            'version_files',
             body)
 
-    def get_multiple_mods_update_info(
+    def get_mod_updates_by_hash(
             self,
             mod_hash_list: list,
             game_version: str,
@@ -108,7 +75,7 @@ class ModrinthApi:
             may return empty dictionary if an error occurs
         :rtype: dict
         """
-        logger.info(f'Starting get_multiple_mods_update_info')
+        logger.info(f'Starting get_mod_updates_by_hash')
         body = {
             'hashes': mod_hash_list,
             'algorithm': self.hash_type,
@@ -117,5 +84,5 @@ class ModrinthApi:
         }
 
         return self._make_post_request(
-            f'{self.api_url}/version_files/update',
+            'version_files/update',
             body)
