@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import re
 from abc import ABC
@@ -7,7 +9,7 @@ from requests.exceptions import HTTPError, ConnectionError, Timeout
 
 from . import HEADERS
 
-logger = logging.getLogger('root')
+logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT = 15
 
@@ -39,12 +41,12 @@ class BaseModApiClient(ABC):
         :type base_url: str
         :param headers: Optional request headers.
         :type headers: dict | None
-        :raises Exception: If base_url is not a valid HTTP or HTTPS URL.
+        :raises ValueError: If base_url is not a valid HTTP or HTTPS URL.
         """
 
         url_pattern = r'^(https?://)[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}'
         if not re.match(url_pattern, base_url):
-            raise Exception(f'Invalid URL: {base_url}')
+            raise ValueError(f'Invalid URL: {base_url}')
 
         self.base_url = base_url if base_url[-1] == '/' else base_url + '/'
         self.headers = headers if headers is not None else HEADERS
@@ -75,8 +77,10 @@ class BaseModApiClient(ABC):
             method = method[1:]
         kwargs.setdefault('timeout', DEFAULT_TIMEOUT)
         try:
+            # base_url is normalized to always end with a slash,
+            # so plain concatenation avoids a double slash.
             response = self._session.post(
-                '/'.join((self.base_url, method)),
+                self.base_url + method,
                 json=body,
                 headers=self.headers,
                 **kwargs)
@@ -95,7 +99,7 @@ class BaseModApiClient(ABC):
             return {'error': 'Failed to retrieve data. See log for more details.'}
 
         logger.info(f'Request: {response.request.method} {response.request.url} - '
-                     f'Status: {response.status_code}')
+                    f'Status: {response.status_code}')
         logger.debug(f'Request headers: {response.request.headers}')
         logger.debug(f'Request body: {response.request.body}')
         logger.debug(f'Request content: {response.text}')

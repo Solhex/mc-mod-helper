@@ -1,12 +1,15 @@
+from __future__ import annotations
+
 __version__ = '1.1.3'
 
 import logging
 from .base import BaseModApiClient
 
-logger = logging.getLogger('root')
+logger = logging.getLogger(__name__)
 
 MODRINTH_API_URL = 'https://api.modrinth.com/v2'
 logger.debug(f'Modrinth API URL: {MODRINTH_API_URL}')
+
 
 class ModrinthAPI(BaseModApiClient):
     """Client for retrieving mod information from the Modrinth API."""
@@ -46,7 +49,7 @@ class ModrinthAPI(BaseModApiClient):
             may return empty dictionary if an error occurs
         :rtype: dict
         """
-        logger.info(f'Starting get_mods_by_hash')
+        logger.info('Starting get_mods_by_hash')
         body = {
             'hashes': mod_hash_list,
             'algorithm': self.hash_type
@@ -75,7 +78,7 @@ class ModrinthAPI(BaseModApiClient):
             may return empty dictionary if an error occurs
         :rtype: dict
         """
-        logger.info(f'Starting get_mod_updates_by_hash')
+        logger.info('Starting get_mod_updates_by_hash')
         body = {
             'hashes': mod_hash_list,
             'algorithm': self.hash_type,

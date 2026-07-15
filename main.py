@@ -12,9 +12,11 @@ from logging.config import dictConfig
 from datetime import datetime
 import hashlib
 import argparse
+import sys
 import requests
 from requests.exceptions import HTTPError
 import os
+from apis import HEADERS
 from apis.modrinth_api import ModrinthAPI
 
 # Program setup:
@@ -64,13 +66,12 @@ args = parser.parse_args()
 
 # Make sure the log directory exists before configuring file logging.
 # Create the directory and any necessary parent directories if they don't exist.
-if not os.path.exists(args.log_dir):
-    os.makedirs(args.log_dir)
+os.makedirs(args.log_dir, exist_ok=True)
 
 # Configure logging:
 # - console output is short and readable
 # - file output is more detailed and rotated to avoid huge log files
-logging.config.dictConfig({
+dictConfig({
     'version': 1,
     'formatters': {
         # Brief formatter for console: just level and message
@@ -139,19 +140,23 @@ def get_sha1(
     return sha1.hexdigest()
 
 
-def download_file(url, path='./') -> str:
+def download_file(url, path='./', filename=None) -> str:
     """Downloads the file in chunks to handle large files efficiently.
 
     :param url: URL of the file to download
     :type url: str
     :param path: Directory path where the file will be saved (default: current directory)
     :type path: str
+    :param filename: Name to save the file as. If not given, it is derived
+        from the last segment of the URL.
+    :type filename: str | None
     :return: Name of the downloaded file
     :rtype: str
     """
-    filename = url.split('/')[-1]
+    if filename is None:
+        filename = url.split('/')[-1]
     logger.info(f'Downloading {filename}')
-    with requests.get(url, stream=True) as r:
+    with requests.get(url, stream=True, headers=HEADERS, timeout=60) as r:
         r.raise_for_status()
         with open(os.path.join(path, filename), 'wb') as f:
             for chunk in r.iter_content(chunk_size=8192):
@@ -174,7 +179,7 @@ def main():
     # Stop early if the mods directory doesn't exist.
     if not os.path.isdir(mod_dir):
         logger.critical('Mod folder does not exist')
-        exit()
+        sys.exit(1)
 
     # Create the API wrapper used for Modrinth lookups.
     modrinth = ModrinthAPI()
@@ -200,7 +205,7 @@ def main():
     # If there are no mods, there is nothing to update.
     if not mod_hash_list:
         logger.warning('No mods found!')
-        exit()
+        sys.exit(0)
 
     # Ask Modrinth which mods match the local hashes.
     # This retrieves metadata for all installed mods in a single API call
@@ -208,7 +213,7 @@ def main():
     if 'error' in mods_info_dict.keys():
         logger.critical(f'No updates can be performed quitting, '
                         f'error output:\n{mods_info_dict["error"]}')
-        exit()
+        sys.exit(1)
     logger.debug(f'Bulk mods info: {mods_info_dict}')
 
     # Group mods by loader because update queries are loader-specific.
@@ -233,7 +238,7 @@ def main():
         if 'error' in mods_update_info[loader].keys():
             logger.critical(f'No updates can be performed quitting, '
                             f'error output:\n{mods_update_info[loader]["error"]}')
-            exit()
+            sys.exit(1)
     logger.debug(f'Mods update info: {mods_update_info}')
 
     mods_updated_count = 0
@@ -255,34 +260,41 @@ def main():
             no_new_version_count += 1
             continue
 
-        # Extract download information from the update data
+        # Extract download information from the update data.
+        # Modrinth marks the canonical jar with 'primary'; fall back to the
+        # first file if none is marked.
         mod_update_files = mods_update_info[mods_loader_dict[mod]][mod]['files']
-        mod_dl_url = mod_update_files[0]['url']
-        new_mod_filename = mod_update_files[0]['filename']
+        mod_update_file = next(
+            (file for file in mod_update_files if file.get('primary')),
+            mod_update_files[0])
+        mod_dl_url = mod_update_file['url']
+        new_mod_filename = mod_update_file['filename']
 
         # If the SHA-1 already matches, the mod is already up to date.
-        if mod == mod_update_files[0]['hashes']['sha1']:
+        if mod == mod_update_file['hashes']['sha1']:
             logger.info(f'Skipping {mods_filename_dict[mod]} is already updated')
             continue
 
         logger.debug(f'Update link for {mods_filename_dict[mod]}: '
-                     f'{mod_update_files[0]["url"]}')
+                     f'{mod_dl_url}')
         logger.info(f'Updating {mods_filename_dict[mod]} to {new_mod_filename}')
 
         try:
-            # Download the updated mod file.
-            download_file(mod_dl_url, mod_dir)
+            # Download the updated mod file under the API-provided filename.
+            download_file(mod_dl_url, mod_dir, filename=new_mod_filename)
 
             # Optionally, delete the old file after the new one is downloaded.
-            # Controlled by the --keep flag
-            if not args.keep:
+            # Controlled by the --keep flag. Skipped when the new file kept the
+            # same name, since removing it would delete the fresh download.
+            if not args.keep and new_mod_filename != mods_filename_dict[mod]:
                 os.remove(os.path.join(mod_dir, mods_filename_dict[mod]))
                 logger.info(f'Deleted old mod file: {mods_filename_dict[mod]}')
         except HTTPError as err:
             logger.error(f'HTTP error occurred: {err}')
+            continue
         except Exception as err:
             logger.critical(f'Unexpected error occurred: {err}')
-            exit()
+            sys.exit(1)
 
         mods_updated_count += 1
 
