@@ -1,9 +1,9 @@
 __version__ = '1.4.0'
-__all__ = ['base', 'modrinth_api']
+__all__ = ['base', 'modrinth_api', 'BaseModApiClient']
 
 import logging
 
-logger = logging.getLogger('root')
+logger = logging.getLogger(__name__)
 
 USER_AGENT = f'Solhex/mc-mod-helper/{__version__} (contact@solfvern.com)'
 logger.debug(f'User agent: {USER_AGENT}')
