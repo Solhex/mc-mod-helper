@@ -8,8 +8,11 @@ import requests
 from requests.exceptions import HTTPError, ConnectionError, Timeout
 
 from . import HEADERS
+from ._version import __version__
 
 logger = logging.getLogger(__name__)
+
+__all__ = ['BaseModApiClient', '__version__']
 
 DEFAULT_TIMEOUT = 15
 
@@ -104,4 +107,11 @@ class BaseModApiClient(ABC):
         logger.debug(f'Request body: {response.request.body}')
         logger.debug(f'Request content: {response.text}')
 
-        return response.json()
+        # A 2xx response does not guarantee a JSON body: proxies and error
+        # pages can return HTML. Parse defensively so callers always get the
+        # documented error dictionary instead of an exception.
+        try:
+            return response.json()
+        except ValueError as err:
+            logger.error(f'Invalid JSON response: {err}')
+            return {'error': 'Invalid JSON response. See log for more details.'}

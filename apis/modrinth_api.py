@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-__version__ = '1.1.3'
-
 import logging
+
+from ._version import __version__
 from .base import BaseModApiClient
 
 logger = logging.getLogger(__name__)
+
+__all__ = ['ModrinthAPI', 'MODRINTH_API_URL', '__version__']
 
 MODRINTH_API_URL = 'https://api.modrinth.com/v2'
 logger.debug(f'Modrinth API URL: {MODRINTH_API_URL}')
