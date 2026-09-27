@@ -1,4 +1,4 @@
-"""Tests for the apis package (BaseModApiClient and ModrinthAPI)."""
+"""Tests for BaseModApiClient._make_post_request."""
 
 from unittest.mock import MagicMock, patch
 
@@ -6,42 +6,8 @@ import pytest
 import requests
 from requests.exceptions import HTTPError, ConnectionError, Timeout
 
-from apis.base import BaseModApiClient, DEFAULT_TIMEOUT
-from apis.modrinth_api import ModrinthAPI, MODRINTH_API_URL
-
-
-def make_client(base_url='https://api.example.com/v2'):
-    return BaseModApiClient(base_url)
-
-
-class TestBaseModApiClientInit:
-    def test_appends_trailing_slash(self):
-        client = make_client('https://api.example.com/v2')
-        assert client.base_url == 'https://api.example.com/v2/'
-
-    def test_keeps_existing_trailing_slash(self):
-        client = make_client('https://api.example.com/v2/')
-        assert client.base_url == 'https://api.example.com/v2/'
-
-    @pytest.mark.parametrize('bad_url', [
-        'not-a-url',
-        'ftp://example.com',
-        'example.com',
-        'https://nodot',
-    ])
-    def test_rejects_invalid_url(self, bad_url):
-        with pytest.raises(ValueError):
-            BaseModApiClient(bad_url)
-
-    def test_uses_default_headers_when_none_given(self):
-        from apis import HEADERS
-        client = make_client()
-        assert client.headers == HEADERS
-
-    def test_uses_custom_headers(self):
-        headers = {'User-agent': 'test-agent'}
-        client = BaseModApiClient('https://api.example.com', headers=headers)
-        assert client.headers == headers
+from apis.base import DEFAULT_TIMEOUT
+from conftest import make_client
 
 
 class TestMakePostRequest:
@@ -116,41 +82,3 @@ class TestMakePostRequest:
         with patch.object(client._session, 'post', return_value=response):
             result = client._make_post_request('version_files', {})
         assert 'error' in result
-
-
-class TestModrinthAPI:
-    def test_default_base_url(self):
-        api = ModrinthAPI()
-        assert api.base_url == MODRINTH_API_URL + '/'
-
-    def test_default_hash_type(self):
-        api = ModrinthAPI()
-        assert api.hash_type == 'sha1'
-
-    def test_get_mods_by_hash_body(self):
-        api = ModrinthAPI()
-        with patch.object(api, '_make_post_request',
-                          return_value={}) as mock_request:
-            api.get_mods_by_hash(['hash1', 'hash2'])
-        mock_request.assert_called_once_with(
-            'version_files',
-            {'hashes': ['hash1', 'hash2'], 'algorithm': 'sha1'})
-
-    def test_get_mod_updates_by_hash_body(self):
-        api = ModrinthAPI()
-        with patch.object(api, '_make_post_request',
-                          return_value={}) as mock_request:
-            api.get_mod_updates_by_hash(
-                ['hash1'], game_version='1.21', loader='fabric')
-        mock_request.assert_called_once_with(
-            'version_files/update',
-            {'hashes': ['hash1'],
-             'algorithm': 'sha1',
-             'loaders': ['fabric'],
-             'game_versions': ['1.21']})
-
-    def test_error_response_passthrough(self):
-        api = ModrinthAPI()
-        error = {'error': 'HTTP error occurred: 404'}
-        with patch.object(api, '_make_post_request', return_value=error):
-            assert api.get_mods_by_hash(['hash1']) == error

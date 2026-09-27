@@ -1,4 +1,8 @@
-__version__ = '1.4.0'
+# Single source of truth. Generated from git tags by
+# scripts/update_version.py, so no version here is ever bumped by hand.
+# Every other module re-exports this one value.
+from ._version import __version__
+
 __all__ = ['base', 'modrinth_api', 'BaseModApiClient']
 
 import logging

@@ -5,8 +5,6 @@ A script that automatically updates Minecraft mods by checking for newer version
 on Modrinth and downloading them. Supports different game versions and mod loaders.
 """
 
-__version__ = '1.3.5'
-
 import logging
 from logging.config import dictConfig
 from datetime import datetime
@@ -16,7 +14,9 @@ import sys
 import requests
 from requests.exceptions import HTTPError
 import os
-from apis import HEADERS
+# __version__ comes from the apis package, which reads the generated
+# apis/_version.py, so nothing here is ever bumped by hand.
+from apis import HEADERS, __version__
 from apis.modrinth_api import ModrinthAPI
 
 # Program setup:
